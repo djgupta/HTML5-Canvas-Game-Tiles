@@ -1,6 +1,7 @@
 var play = document.getElementById('play');
 var score = document.getElementById('score');
 var canvas = document.getElementById('canvas');
+var message = document.getElementById('message');
 
 var ratio = window.devicePixelRatio || 1;
 var w = window.innerWidth;
@@ -8,50 +9,46 @@ var h = window.innerHeight - 50;
 canvas.width = w;
 canvas.height = h;
 var context = canvas.getContext('2d');
-main();
+var state = {};
 
 function main(){
-	var a=0;
-	var b=0;
-	rects = [];
-	box = 9;
-	if(parseInt(w/(box+1)) < parseInt(h/(box+1))){
-		size = parseInt(w/(box+1));
-	}
-	else{
-		size = parseInt(h/(box+1));
-	}
-	scores = 0;
-
-	score.innerHTML = "Score: " + scores;
-	play.value = "play";
-	playValue = true;
-	gameOn = false;
-	conti = false;
-	gameOver = false;
-	timer = null;
-	time = 1000;
-
-	context.clearRect(0,0,canvas.width, canvas.height);
-
-	for(var i=0;i<box;i++){
-		for(var j=0;j<box;j++){
-			var object = new rectangle(context,a,b);
-			object.create();
-			rects.push(object);
-			a+=size;
-		}
-		a=0;
-		b+=size;
-	}
+	state = init();
+	create_grid(context, state.boxNumbers, 0, 0, getSize(state.boxNumbers, w, h));
 }
 
-function rectangle(context,a,b){
+function init(){
+	play.value = "play";
+	return {
+		boxNumbers : 9,
+		time : 1000	,
+		timedelta:-1,
+		rects:[],
+		random : null,
+		playing : false,
+		timer : null,
+		score:0,
+		gameOn:false,
+		gameOver:false
+	};
+}
+
+function getSize(boxNumbers, width, height){
+	var size;
+	if(parseInt(width/(boxNumbers+1)) < parseInt(height/(boxNumbers+1))){
+		size = parseInt(width/(boxNumbers+1));
+	}
+	else{
+		size = parseInt(height/(boxNumbers+1));
+	}
+	return size;
+}
+
+function rectangle(context,a, b, size){
 	this.context = context;
 	this.a = a;
 	this.b = b;
-	this.context.globalAlpha = 0.3;
 	this.create = function(){
+		context.globalAlpha = 0.3;
 		context.beginPath();		
 		context.fillStyle = "black";//'rgb(' + this.r + ',' + this.g + ',' + this.b + ')';
 		context.rect(a,b,size,size);
@@ -61,79 +58,91 @@ function rectangle(context,a,b){
 	}
 }
 
-function windowToCanvas(x,y){
-		var bbox = canvas.getBoundingClientRect();
-		return { x:x - bbox.left*(canvas.width/bbox.width),
-				 y:y - bbox.top*(canvas.height/bbox.height)
-		};
+function create_grid(context, boxNumbers, a, b, size){
+	context.clearRect(0,0,canvas.width, canvas.height);
+	for(var i=0;i<boxNumbers;i++){
+		for(var j=0;j<boxNumbers;j++){
+			var object = new rectangle(context,a,b, size);
+			object.create();
+			state.rects.push(object);
+			a+=size;
+		}
+		a=0;
+		b+=size;
+	}
+};
+
+function windowToCanvas(x,y, width, height){
+	var bbox = canvas.getBoundingClientRect();
+	return { x:x - bbox.left*(width/bbox.width),
+				y:y - bbox.top*(height/bbox.height)
+	};
 }
 
 canvas.onmousedown = function(e){
-	if(gameOn){
-		var loc = windowToCanvas(e.clientX, e.clientY);
+	if(state.gameOn){
+		var loc = windowToCanvas(e.clientX, e.clientY, canvas.width, canvas.height)
 		context.clearRect(0,0,canvas.width, canvas.height);
-		for(var i=0; i<rects.length;i++){
-			rects[i].create();
-			if(rects[i].context.isPointInPath(loc.x, loc.y)){
-				if(i==random){
+		for(var i=0; i<state.rects.length;i++){
+			state.rects[i].create();
+			if(state.rects[i].context.isPointInPath(loc.x, loc.y)){
+				if(i==state.random){
 					context.globalAlpha = 0.3;
-					context.shadowBlur = null;
-					conti = true;
-					scores++;
-					score.innerHTML = 'Score: ' + scores;
-					window.clearInterval(timer);
-					time = time - 10;
-					timer = window.setInterval(gameon, time);
-
+					state.playing = true;
+					state.score++;
+					score.innerHTML = 'Score: ' + state.score;
+					window.clearInterval(state.timer);
+					state.time = state.time + state.timedelta;
+					state.timer = window.setInterval(gameon, state.time);
 				}
 				else{
-					context.globalAlpha = 1;
-					rects[random].create();
-					context.globalAlpha = 0.3;
-					gameOver = true;
+					state.gameOver = true;
 				}
 			}
 		}
-		gameOn = false;
-		if(conti){
+		state.gameOn = false;
+		if(state.playing){
 			gameon();
 		}
-		if(gameOver){
-			window.clearInterval(timer);
-			alert("gameover");
-			main();
-
+		if(state.gameOver){
+			gameOver();
 		}
 	}
 };
 
+function gameOver(){
+	window.clearInterval(state.timer);
+	message.innerHTML = "Game over!";
+	window.setTimeout(function() {message.innerHTML='';},2000);
+	main();
+}
+
 play.onclick = function(e){
-	if(playValue){
+	if(play.value == "play"){
+		score.innerHTML = "Score: 0";
 		play.value = "New Game";
-		playValue = false;
-		conti = true;
-		timer = window.setInterval(gameon, time);
+		state.playing = true;
+		state.timer = window.setInterval(gameon, state.time);
 	}
 	else{
 		play.value = "play";
-		playValue = true;
-		window.clearInterval(timer);
+		window.clearInterval(state.timer);
 		main();
 	}
 }
 
 function gameon(){
-	if(conti){
-		gameOn = true;
-		random = Math.floor(box*box*Math.random());
+	if(state.playing){
+		state.gameOn = true;
+		state.random = Math.floor(state.boxNumbers*state.boxNumbers*Math.random());
 		context.globalAlpha = 1;
-		rects[random].create();
+		state.rects[state.random].create();
 		context.globalAlpha = 0.3;
-		conti = false;
+		state.playing = false;
 	}
 	else{
-		window.clearInterval(timer);
-		alert("gameover");
-		main();
+		gameOver();
 	}
 }
+
+main();
