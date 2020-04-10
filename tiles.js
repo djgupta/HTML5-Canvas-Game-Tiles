@@ -1,3 +1,4 @@
+
 var play = document.getElementById('play');
 var score = document.getElementById('score');
 var canvas = document.getElementById('canvas');
@@ -5,23 +6,42 @@ var message = document.getElementById('message');
 
 var ratio = window.devicePixelRatio || 1;
 var w = window.innerWidth;
-var h = window.innerHeight - 50;
+var h = window.innerHeight - 0.2*window.innerHeight;
 canvas.width = w;
 canvas.height = h;
 var context = canvas.getContext('2d');
+
+var user = {};
+var game = {};
+var level = {};
 var state = {};
 
 function main(){
-	state = init();
-	create_grid(context, state.boxNumbers, 0, 0, getSize(state.boxNumbers, w, h));
+	// game -> level -> state
+	starter();	
 }
 
-function init(){
+function starter(){
+	user = initUser();
+	game = initGame();
+	level = initLevel(game.level);
+	state = initState();
+	create_grid(context, level.boxNumbers, 0, 0, getSize(level.boxNumbers, w, h), level.levelFunc);
+}
+
+function initUser(){
+	return null;
+}
+
+function initGame(){
+	return {
+		level: 3
+	}
+}
+
+function initState(){
 	play.value = "play";
 	return {
-		boxNumbers : 9,
-		time : 1000	,
-		timedelta:-1,
 		rects:[],
 		random : null,
 		playing : false,
@@ -43,26 +63,24 @@ function getSize(boxNumbers, width, height){
 	return size;
 }
 
-function rectangle(context,a, b, size){
-	this.context = context;
-	this.a = a;
-	this.b = b;
-	this.create = function(){
-		context.globalAlpha = 0.3;
-		context.beginPath();		
-		context.fillStyle = "black";//'rgb(' + this.r + ',' + this.g + ',' + this.b + ')';
-		context.rect(a,b,size,size);
-		context.stroke();
-		context.fill();
-		context.closePath();
+class rectangle {
+	constructor(context, a, b, size, levelFunc) {
+		this.context = context;
+		this.a = a;
+		this.b = b;
+		this.levelFunc = levelFunc;
+		this.create = function () {
+			var input = {x:a, y:b, length: size};
+			this.levelFunc(input);
+		};
 	}
 }
 
-function create_grid(context, boxNumbers, a, b, size){
+function create_grid(context, boxNumbers, a, b, size, levelFunc){
 	context.clearRect(0,0,canvas.width, canvas.height);
 	for(var i=0;i<boxNumbers;i++){
 		for(var j=0;j<boxNumbers;j++){
-			var object = new rectangle(context,a,b, size);
+			var object = new rectangle(context, a, b, size, levelFunc);
 			object.create();
 			state.rects.push(object);
 			a+=size;
@@ -83,17 +101,17 @@ canvas.onmousedown = function(e){
 	if(state.gameOn){
 		var loc = windowToCanvas(e.clientX, e.clientY, canvas.width, canvas.height)
 		context.clearRect(0,0,canvas.width, canvas.height);
+		//better logic to find the clicked rectangle
 		for(var i=0; i<state.rects.length;i++){
 			state.rects[i].create();
 			if(state.rects[i].context.isPointInPath(loc.x, loc.y)){
 				if(i==state.random){
-					context.globalAlpha = 0.3;
 					state.playing = true;
 					state.score++;
 					score.innerHTML = 'Score: ' + state.score;
 					window.clearInterval(state.timer);
-					state.time = state.time + state.timedelta;
-					state.timer = window.setInterval(gameon, state.time);
+					level.frequency = level.frequency + level.timedelta;
+					state.timer = window.setInterval(gameon, level.frequency);
 				}
 				else{
 					state.gameOver = true;
@@ -122,7 +140,7 @@ play.onclick = function(e){
 		score.innerHTML = "Score: 0";
 		play.value = "New Game";
 		state.playing = true;
-		state.timer = window.setInterval(gameon, state.time);
+		state.timer = window.setInterval(gameon, level.frequency);
 	}
 	else{
 		play.value = "play";
@@ -134,15 +152,14 @@ play.onclick = function(e){
 function gameon(){
 	if(state.playing){
 		state.gameOn = true;
-		state.random = Math.floor(state.boxNumbers*state.boxNumbers*Math.random());
-		context.globalAlpha = 1;
+		state.random = Math.floor(level.boxNumbers*level.boxNumbers*Math.random());
+		state.rects[state.random].levelFunc = level.levelFuncRandom
 		state.rects[state.random].create();
-		context.globalAlpha = 0.3;
+		state.rects[state.random].levelFunc = level.levelFunc
 		state.playing = false;
 	}
 	else{
 		gameOver();
 	}
 }
-
 main();
