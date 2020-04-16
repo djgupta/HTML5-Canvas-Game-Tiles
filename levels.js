@@ -37,7 +37,7 @@ var static_levels =  {
 function dynamic_levels(level){
 	var b = {start:1, random:20};
 	var i = {start:1000, random:200};
-	var td = {start:1, random:70};
+	var td = {start:1, random:30};
 	var t = {start:6}
 	var box = b.start+Math.floor(b.random*Math.random());
 	var initTime = i.start - Math.floor(i.random*Math.random());
