@@ -1,139 +1,201 @@
+
 var play = document.getElementById('play');
 var score = document.getElementById('score');
 var canvas = document.getElementById('canvas');
+var message = document.getElementById('message');
+var levelId = document.getElementById('level');
 
 var ratio = window.devicePixelRatio || 1;
 var w = window.innerWidth;
-var h = window.innerHeight - 50;
+var h = window.innerHeight - 0.2*window.innerHeight;
 canvas.width = w;
 canvas.height = h;
 var context = canvas.getContext('2d');
-main();
+
+var user = {};
+var game = {};
+var level = {};
+var state = {};
+var winner = false;
 
 function main(){
-	var a=0;
-	var b=0;
-	rects = [];
-	box = 9;
-	if(parseInt(w/(box+1)) < parseInt(h/(box+1))){
-		size = parseInt(w/(box+1));
+	user = initUser();
+	game = initGame(user);
+	starter(game);
+}
+
+function initUser(){
+	return null;
+}
+
+function initGame(user){
+	return {
+		level: 1
+	}
+}
+
+function starter(game){
+	level = initLevel(game.level);
+	if(level == undefined){
+		displayMessage("Thanks for playing! :)")
+		return;
 	}
 	else{
-		size = parseInt(h/(box+1));
+		state = initState(level);
+		generateNumbers(state);
+		create_grid(context, level.boxNumbers, 0, 0, getSize(level.boxNumbers, w, h), level.levelFunc);
 	}
-	scores = 0;
+	if(winner){
+		gameStart();
+	}
+}
 
-	score.innerHTML = "Score: " + scores;
+
+function initState(level){
 	play.value = "play";
-	playValue = true;
-	gameOn = false;
-	conti = false;
-	gameOver = false;
-	timer = null;
-	time = 1000;
+	return {
+		rects:[],
+		random : null,
+		playing : false,
+		timer : null,
+		score:0,
+		gameOn:false,
+		gameOver:false,
+		target: level.target,
+		level:level.level,
+	};
+}
 
+function generateNumbers(state){
+	levelId.innerHTML = 'Level: ' + state.level;
+	score.innerHTML = 'Score: ' + state.score;
+	target.innerHTML = 'Target: ' + state.target;
+}
+
+function getSize(boxNumbers, width, height){
+	var size;
+	if(parseInt(width/(boxNumbers+1)) < parseInt(height/(boxNumbers+1))){
+		size = parseInt(width/(boxNumbers+1));
+	}
+	else{
+		size = parseInt(height/(boxNumbers+1));
+	}
+	return size;
+}
+
+class rectangle {
+	constructor(context, a, b, size, levelFunc) {
+		this.context = context;
+		this.a = a;
+		this.b = b;
+		this.levelFunc = levelFunc;
+		this.create = function () {
+			var input = {x:a, y:b, length: size};
+			this.levelFunc(input);
+		};
+	}
+}
+
+function create_grid(context, boxNumbers, a, b, size, levelFunc){
 	context.clearRect(0,0,canvas.width, canvas.height);
-
-	for(var i=0;i<box;i++){
-		for(var j=0;j<box;j++){
-			var object = new rectangle(context,a,b);
+	for(var i=0;i<boxNumbers;i++){
+		for(var j=0;j<boxNumbers;j++){
+			var object = new rectangle(context, a, b, size, levelFunc);
 			object.create();
-			rects.push(object);
+			state.rects.push(object);
 			a+=size;
 		}
 		a=0;
 		b+=size;
 	}
-}
+};
 
-function rectangle(context,a,b){
-	this.context = context;
-	this.a = a;
-	this.b = b;
-	this.context.globalAlpha = 0.3;
-	this.create = function(){
-		context.beginPath();		
-		context.fillStyle = "black";//'rgb(' + this.r + ',' + this.g + ',' + this.b + ')';
-		context.rect(a,b,size,size);
-		context.stroke();
-		context.fill();
-		context.closePath();
-	}
-}
-
-function windowToCanvas(x,y){
-		var bbox = canvas.getBoundingClientRect();
-		return { x:x - bbox.left*(canvas.width/bbox.width),
-				 y:y - bbox.top*(canvas.height/bbox.height)
-		};
+function windowToCanvas(x,y, width, height){
+	var bbox = canvas.getBoundingClientRect();
+	return { x:x - bbox.left*(width/bbox.width),
+				y:y - bbox.top*(height/bbox.height)
+	};
 }
 
 canvas.onmousedown = function(e){
-	if(gameOn){
-		var loc = windowToCanvas(e.clientX, e.clientY);
+	if(state.gameOn){
+		var loc = windowToCanvas(e.clientX, e.clientY, canvas.width, canvas.height)
 		context.clearRect(0,0,canvas.width, canvas.height);
-		for(var i=0; i<rects.length;i++){
-			rects[i].create();
-			if(rects[i].context.isPointInPath(loc.x, loc.y)){
-				if(i==random){
-					context.globalAlpha = 0.3;
-					context.shadowBlur = null;
-					conti = true;
-					scores++;
-					score.innerHTML = 'Score: ' + scores;
-					window.clearInterval(timer);
-					time = time - 10;
-					timer = window.setInterval(gameon, time);
-
+		//TODO: better logic to find the clicked rectangle
+		for(var i=0; i<state.rects.length;i++){
+			state.rects[i].create();
+			if(state.rects[i].context.isPointInPath(loc.x, loc.y)){
+				if(i==state.random){
+					state.playing = true;
+					state.score++;
+					if(state.score==state.target){
+						game.level++
+						window.clearInterval(state.timer);
+						winner = true;
+						starter(game);
+						break;
+					}
+					window.clearInterval(state.timer);
+					generateNumbers(state);
+					level.initTime = level.initTime + level.timedelta;
+					state.timer = window.setInterval(gameon, level.initTime);
 				}
 				else{
-					context.globalAlpha = 1;
-					rects[random].create();
-					context.globalAlpha = 0.3;
-					gameOver = true;
+					state.gameOver = true;
 				}
 			}
 		}
-		gameOn = false;
-		if(conti){
+		state.gameOn = false;
+		if(state.playing){
 			gameon();
 		}
-		if(gameOver){
-			window.clearInterval(timer);
-			alert("gameover");
-			main();
-
+		if(state.gameOver){
+			gameOver('wrong tile!');
 		}
 	}
 };
 
+function gameOver(reason){
+	winner = false;
+	window.clearInterval(state.timer);
+	displayMessage(reason);
+	starter(game);
+}
+
+function displayMessage(msg){
+	message.innerHTML = msg;
+	window.setTimeout(function() {message.innerHTML='';},4000);
+}
+
 play.onclick = function(e){
-	if(playValue){
-		play.value = "New Game";
-		playValue = false;
-		conti = true;
-		timer = window.setInterval(gameon, time);
+	if(play.value == "play"){
+		gameStart();
 	}
 	else{
 		play.value = "play";
-		playValue = true;
-		window.clearInterval(timer);
-		main();
+		window.clearInterval(state.timer);
+		starter(game);
 	}
 }
 
+function gameStart(){
+	score.innerHTML = "Score: 0";
+	play.value = "New Game";
+	state.playing = true;
+	state.timer = window.setInterval(gameon, level.initTime);
+}
+
 function gameon(){
-	if(conti){
-		gameOn = true;
-		random = Math.floor(box*box*Math.random());
-		context.globalAlpha = 1;
-		rects[random].create();
-		context.globalAlpha = 0.3;
-		conti = false;
+	if(state.playing){
+		state.gameOn = true;
+		state.random = Math.floor(level.boxNumbers*level.boxNumbers*Math.random());
+		state.rects[state.random].levelFunc = level.levelFuncRandom
+		state.rects[state.random].create();
+		state.rects[state.random].levelFunc = level.levelFunc
+		state.playing = false;
 	}
 	else{
-		window.clearInterval(timer);
-		alert("gameover");
-		main();
+		gameOver("too slow!");
 	}
 }
+main();

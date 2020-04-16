@@ -1,13 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-  	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Tiles</title>
 </head>
 <body>
-	<input type="button" id="play" value="play">
-	<p id="score">Score: </p>
+	<h1>Welcome to Tiles!</h1>
+	<div>
+		<p>The objective of the game is to hit the odd tile.</p>
+	</div>
+	<div>
+		<input type="button" id="play" style="float: left;margin-top: 1%;">
+		<p id="level" style="float: left;margin-left : 2%;">Level: 0</p>
+		<p id="score" style="float: left;margin-left : 2%;">Score: 0</p>
+		<p id="target" style="float: left;margin-left : 2%;">Target: 0</p>
+		<p id="message" style="color:red; float: left; margin-left:2%;"></p>
+	</div>
 	<canvas id="canvas">NO? Really?</canvas>
-	<script src='tiles.js'></script> 
+	<script type="text/javascript" src='levels.js'></script>  
+	<script type="text/javascript" src='tiles.js'></script> 
 </body>
